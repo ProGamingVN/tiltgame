@@ -6,18 +6,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   :root {
-    --bg: #0f1220;
-    --panel: #1b1f33;
-    --accent: #5ee6c8;
-    --accent2: #ff6b6b;
-    --text: #e8eaf5;
-    --muted: #8b90ad;
+    --bg: #f4f6fb;
+    --panel: #ffffff;
+    --accent: #0fb8a3;
+    --accent2: #e63946;
+    --text: #1c2033;
+    --muted: #6b7094;
+    --border: #e3e6f0;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     min-height: 100vh;
-    background: radial-gradient(circle at 50% 0%, #1a2040, var(--bg) 60%);
+    background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 55%);
     color: var(--text);
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
@@ -29,22 +30,25 @@
   h1 { font-size: 22px; margin: 4px 0 2px; letter-spacing: 0.5px; }
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
 
+  #app { display: flex; flex-direction: column; align-items: center; width: min(860px, 100%); }
+
   .panel {
     background: var(--panel);
+    border: 1px solid var(--border);
     border-radius: 14px;
     padding: 12px 18px;
     margin-bottom: 12px;
-    width: min(860px, 100%);
+    width: 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 14px rgba(20,25,60,0.06);
   }
   button {
     background: var(--accent);
-    color: #0b1220;
+    color: #ffffff;
     border: none;
     padding: 10px 18px;
     border-radius: 10px;
@@ -55,7 +59,7 @@
   }
   button:hover { transform: translateY(-1px); }
   button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  button.secondary { background: #2b3156; color: var(--text); }
+  button.secondary { background: #eef0f8; color: var(--text); border: 1px solid var(--border); }
 
   .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent2); margin-right: 6px; }
   .status-dot.on { background: var(--accent); }
@@ -64,17 +68,21 @@
 
   #stage {
     position: relative;
-    width: min(860px, 100%);
+    width: 100%;
     aspect-ratio: 800 / 480;
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 0 0 1px #2a2f52;
-    background: #0a0d1e;
+    box-shadow: 0 10px 30px rgba(20,25,60,0.12), inset 0 0 0 1px var(--border);
+    background: linear-gradient(180deg, #eaf4ff 0%, #ffffff 100%);
   }
   #stage canvas { display: block; width: 100% !important; height: 100% !important; }
 
+  #app:fullscreen { justify-content: center; height: 100vh; background: var(--bg); padding: 16px; }
+  #app:fullscreen #stage { width: auto; height: min(88vh, 100%); aspect-ratio: 800 / 480; }
+  #app:fullscreen .panel, #app:fullscreen .hud { width: min(860px, 92vw); }
+
   .hud {
-    width: min(860px, 100%);
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -85,21 +93,23 @@
   .hud b { color: var(--text); font-size: 18px; }
   #lives { letter-spacing: 3px; font-size: 18px; }
   #comboText {
-    position: absolute; pointer-events: none; font-weight: 800; color: #ffd166;
-    text-shadow: 0 0 10px rgba(255,209,102,0.8); opacity: 0; transition: opacity 0.15s;
+    position: absolute; pointer-events: none; font-weight: 800; color: #e07a00;
+    text-shadow: 0 0 8px rgba(255,209,102,0.9); opacity: 0; transition: opacity 0.15s;
+    left: 50%; top: 18%; transform: translateX(-50%);
   }
 
-  .hint { max-width: min(860px, 100%); color: var(--muted); font-size: 12.5px; line-height: 1.6; margin-top: 14px; }
-  code { background: #262b4a; padding: 1px 6px; border-radius: 5px; }
+  .hint { max-width: 100%; color: var(--muted); font-size: 12.5px; line-height: 1.6; margin-top: 14px; }
+  code { background: #eef0f8; padding: 1px 6px; border-radius: 5px; color: #333a5c; }
 
   #overlay {
     position: absolute; inset: 0;
-    background: rgba(8,10,20,0.8);
+    background: rgba(20,25,50,0.55);
     display: none; align-items: center; justify-content: center;
     flex-direction: column; text-align: center; padding: 20px;
+    backdrop-filter: blur(2px);
   }
-  #overlay h2 { font-size: 26px; margin-bottom: 6px; }
-  #overlay p { color: var(--muted); margin: 4px 0 18px; }
+  #overlay h2 { font-size: 26px; margin-bottom: 6px; color: #fff; }
+  #overlay p { color: #dfe3f5; margin: 4px 0 18px; }
 </style>
 </head>
 <body>
@@ -107,47 +117,54 @@
   <h1>🍉 Chém Hoa Quả 3D — điều khiển bằng nghiêng ESP32 + MPU6050</h1>
   <div class="subtitle">Nghiêng module để quét lưỡi dao, chém nhanh qua trái cây — né bom!</div>
 
-  <div class="panel">
-    <div class="status-row">
-      <span><span id="dot" class="status-dot"></span><span id="statusText">Chưa kết nối</span></span>
-      <span id="debug">roll: 0.0°&nbsp;&nbsp;pitch: 0.0°</span>
+  <div id="app">
+    <div class="panel">
+      <div class="status-row">
+        <span><span id="dot" class="status-dot"></span><span id="statusText">Chưa kết nối</span></span>
+        <span id="debug">roll: 0.0°&nbsp;&nbsp;pitch: 0.0°</span>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="btnConnect">🔌 Kết nối ESP32</button>
+        <button id="btnStart" class="secondary">▶️ Bắt đầu chơi</button>
+        <button id="btnFullscreen" class="secondary">⛶ Toàn màn hình</button>
+      </div>
     </div>
-    <div style="display:flex; gap:10px;">
-      <button id="btnConnect">🔌 Kết nối ESP32</button>
-      <button id="btnStart" class="secondary">▶️ Bắt đầu chơi</button>
+
+    <div class="hud">
+      <div>Điểm: <b id="scoreLabel">0</b> &nbsp;|&nbsp; Kỷ lục: <b id="bestLabel">0</b></div>
+      <div id="lives">❤️❤️❤️</div>
     </div>
-  </div>
 
-  <div class="hud">
-    <div>Điểm: <b id="scoreLabel">0</b> &nbsp;|&nbsp; Kỷ lục: <b id="bestLabel">0</b></div>
-    <div id="lives">❤️❤️❤️</div>
-  </div>
-
-  <div id="stage">
-    <div id="comboText">Combo x2!</div>
-    <div id="overlay">
-      <h2 id="overTitle">💥 Kết thúc!</h2>
-      <p id="overSub">Điểm của bạn: 0</p>
-      <button id="btnRestart">🔁 Chơi lại</button>
+    <div id="stage">
+      <div id="comboText">Combo x2!</div>
+      <div id="overlay">
+        <h2 id="overTitle">💥 Kết thúc!</h2>
+        <p id="overSub">Điểm của bạn: 0</p>
+        <button id="btnRestart">🔁 Chơi lại</button>
+      </div>
     </div>
   </div>
 
   <div class="hint">
     <b>Cách chơi:</b> nhấn <code>Kết nối ESP32</code>, chọn cổng của board (đang chạy firmware
-    <code>esp32_mpu6050_firmware.ino</code> gửi dữ liệu <code>roll,pitch</code> — dùng đúng file firmware
-    ở project trước, không cần sửa gì). Nghiêng module để di chuyển lưỡi dao, <b>nghiêng nhanh qua trái cây</b>
-    để chém — chỉ đưa dao chậm chạm nhẹ sẽ không tính là chém. Chạm phải quả bom màu đen là thua ngay.
-    Để quả rơi mất mà không chém trúng sẽ mất 1 mạng. Chỉ chạy trên <b>Chrome/Edge desktop</b>.
-    Chưa có board? Dùng chuột/ngón tay rê trên khung chơi để chém thử.
+    <code>esp32_mpu6050_firmware.ino</code> gửi dữ liệu <code>roll,pitch</code>). Nghiêng module để di chuyển
+    lưỡi dao, <b>nghiêng nhanh qua trái cây</b> để chém. Chạm bom màu đen là thua ngay. Để quả rơi mất không
+    chém trúng sẽ mất 1 mạng. Bấm <code>⛶ Toàn màn hình</code> để chơi rõ hơn. Chỉ chạy trên
+    <b>Chrome/Edge desktop</b>. Chưa có board? Dùng chuột/ngón tay rê trên khung chơi để chém thử.<br><br>
+    <b>Ảnh trái cây/bomb:</b> đặt file PNG nền trong suốt vào thư mục <code>assets/fruits/</code>
+    (xem <code>assets/fruits/README.md</code> để biết tên file cần và chỗ tải ảnh miễn phí). Chưa có ảnh
+    thì game tự dùng hình khối màu thay thế, vẫn chơi bình thường.
   </div>
 
 <script>
 (() => {
   // ---------------- DOM ----------------
+  const app = document.getElementById('app');
   const stage = document.getElementById('stage');
   const btnConnect = document.getElementById('btnConnect');
   const btnStart = document.getElementById('btnStart');
   const btnRestart = document.getElementById('btnRestart');
+  const btnFullscreen = document.getElementById('btnFullscreen');
   const dot = document.getElementById('dot');
   const statusText = document.getElementById('statusText');
   const debugEl = document.getElementById('debug');
@@ -158,6 +175,13 @@
   const overSub = document.getElementById('overSub');
   const overTitle = document.getElementById('overTitle');
   const comboText = document.getElementById('comboText');
+
+  // ---------------- Fullscreen ----------------
+  btnFullscreen.addEventListener('click', () => {
+    if (!document.fullscreenElement) app.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+  document.addEventListener('fullscreenchange', () => setTimeout(resizeToStage, 60));
 
   // ---------------- Tilt input (roll/pitch từ ESP32 hoặc chuột) ----------------
   let roll = 0, pitch = 0;
@@ -177,7 +201,6 @@
       keepReading = true;
       dot.classList.add('on');
       statusText.textContent = 'Đã kết nối';
-      btnStart.disabled = false;
       readLoop();
     } catch (err) {
       statusText.textContent = 'Kết nối thất bại: ' + err.message;
@@ -218,48 +241,13 @@
   btnConnect.addEventListener('click', connectSerial);
 
   // ---------------- Three.js setup ----------------
-  const W = 800, H = 480;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(50, 800 / 480, 0.1, 100);
   camera.position.set(0, 0, 10);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   stage.insertBefore(renderer.domElement, stage.firstChild);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-  dirLight.position.set(3, 6, 8);
-  scene.add(dirLight);
-  const bladeLight = new THREE.PointLight(0x5ee6c8, 1.2, 8);
-  scene.add(bladeLight);
-
-  // nền sao lấp lánh cho chiều sâu
-  {
-    const starGeo = new THREE.BufferGeometry();
-    const N = 180, pos = new Float32Array(N * 3);
-    for (let i = 0; i < N; i++) {
-      pos[i*3]   = (Math.random() - 0.5) * 30;
-      pos[i*3+1] = (Math.random() - 0.5) * 20;
-      pos[i*3+2] = -10 - Math.random() * 15;
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x5ee6c8, size: 0.05, transparent: true, opacity: 0.5 });
-    scene.add(new THREE.Points(starGeo, starMat));
-  }
-
-  // mặt phẳng ảo z=0 nơi mọi thứ trong gameplay di chuyển
-  const gamePlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  const raycaster = new THREE.Raycaster();
-
-  function worldFromNDC(nx, ny) {
-    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
-    const out = new THREE.Vector3();
-    raycaster.ray.intersectPlane(gamePlane, out);
-    return out || new THREE.Vector3();
-  }
 
   let halfW = 0, halfH = 0;
   function computeFrustum() {
@@ -267,7 +255,28 @@
     halfH = Math.tan(vFOV / 2) * camera.position.z;
     halfW = halfH * camera.aspect;
   }
-  computeFrustum();
+  function resizeToStage() {
+    const rect = stage.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / rect.height;
+    camera.updateProjectionMatrix();
+    computeFrustum();
+    renderer.render(scene, camera);
+  }
+  window.addEventListener('resize', resizeToStage);
+  resizeToStage();
+
+  // mặt phẳng ảo z=0 nơi mọi thứ trong gameplay di chuyển
+  const gamePlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const raycaster = new THREE.Raycaster();
+  function worldFromNDC(nx, ny) {
+    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+    const out = new THREE.Vector3();
+    raycaster.ray.intersectPlane(gamePlane, out);
+    return out || new THREE.Vector3();
+  }
 
   // ---------------- Chuột / cảm ứng dự phòng ----------------
   function pointerToNDC(clientX, clientY) {
@@ -288,22 +297,52 @@
     e.preventDefault();
   }, { passive: false });
 
+  // ---------------- Texture loading (ảnh thật hoặc hình thay thế) ----------------
+  const texLoader = new THREE.TextureLoader();
+  function makePlaceholderCanvas(hexColor, label) {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#' + hexColor.toString(16).padStart(6, '0');
+    g.beginPath();
+    g.roundRect(4, 4, 56, 56, 14);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.28)';
+    for (let i = 0; i < 30; i++) g.fillRect(4 + Math.random() * 52, 4 + Math.random() * 52, 3, 3);
+    g.fillStyle = 'rgba(255,255,255,0.95)';
+    g.font = 'bold 10px monospace';
+    g.textAlign = 'center';
+    g.fillText(label, 32, 60);
+    return c;
+  }
+  function loadTexture(path, fallbackColor, label) {
+    const tex = new THREE.Texture();
+    texLoader.load(
+      path,
+      img => { tex.image = img.image; tex.needsUpdate = true; },
+      undefined,
+      () => { tex.image = makePlaceholderCanvas(fallbackColor, label); tex.needsUpdate = true; }
+    );
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    return tex;
+  }
+
   // ---------------- Trạng thái game ----------------
   const FRUIT_TYPES = [
-    { name: 'táo',      color: 0xe63946, radius: 0.55, points: 10 },
-    { name: 'cam',      color: 0xff8c00, radius: 0.6,  points: 10 },
-    { name: 'dưa hấu',  color: 0x2ecc71, radius: 0.95, points: 20 },
-    { name: 'kiwi',     color: 0xa3d900, radius: 0.5,  points: 15 },
-    { name: 'nho',      color: 0x8e44ad, radius: 0.45, points: 25 },
+    { name: 'táo',     file: 'apple.png',      color: 0xe63946, size: 1.0,  points: 10 },
+    { name: 'cam',     file: 'orange.png',     color: 0xff8c00, size: 1.05, points: 10 },
+    { name: 'dưa hấu', file: 'watermelon.png', color: 0x2ecc71, size: 1.5,  points: 20 },
+    { name: 'kiwi',    file: 'kiwi.png',       color: 0xa3d900, size: 0.9,  points: 15 },
+    { name: 'nho',     file: 'grape.png',      color: 0x8e44ad, size: 0.85, points: 25 },
   ];
+  for (const t of FRUIT_TYPES) t.texture = loadTexture('assets/fruits/' + t.file, t.color, t.name);
+  const bombTexture = loadTexture('assets/fruits/bomb.png', 0x1a1a1a, 'bomb');
+
   const GRAVITY = -14;
-
-  let fruits = [];      // {mesh, vel, r, alive}
-  let bombs = [];
-  let debris = [];       // mảnh vỡ + hạt nước ép
-  let trail = [];        // {pos: Vector3, t}
+  let fruits = [], bombs = [], debris = [], trail = [];
   let trailLine, trailGeo;
-
   let running = false;
   let score = 0, lives = 3, combo = 0, comboResetTimer = 0;
   let best = Number(localStorage.getItem('fruitNinjaBest') || 0);
@@ -311,66 +350,61 @@
   let spawnTimer = 0, elapsed = 0, lastTs = 0;
   let bladePos = new THREE.Vector3(0, 0, 0);
 
-  // vệt dao (glowing trail)
   function setupTrail() {
     trailGeo = new THREE.BufferGeometry();
-    const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, linewidth: 2, blending: THREE.AdditiveBlending });
+    const mat = new THREE.LineBasicMaterial({ color: 0x0fb8a3, transparent: true, opacity: 0.9, linewidth: 2 });
     trailLine = new THREE.Line(trailGeo, mat);
     scene.add(trailLine);
   }
   setupTrail();
 
-  function makeFruitMesh(type) {
-    const geo = new THREE.SphereGeometry(type.radius, 20, 20);
-    const mat = new THREE.MeshStandardMaterial({ color: type.color, roughness: 0.4, metalness: 0.05 });
-    const mesh = new THREE.Mesh(geo, mat);
-    return mesh;
+  function makeSpriteMesh(texture, size) {
+    const geo = new THREE.PlaneGeometry(size, size);
+    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide });
+    return new THREE.Mesh(geo, mat);
+  }
+
+  function naturalSpin(vx) {
+    const dir = vx >= 0 ? 1 : -1;
+    const sign = Math.random() < 0.8 ? dir : -dir; // 80% xoay theo hướng bay, thỉnh thoảng ngược lại cho tự nhiên
+    return sign * (1.6 + Math.random() * 2.6);
   }
 
   function spawnFruit() {
     const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
-    const mesh = makeFruitMesh(type);
+    const mesh = makeSpriteMesh(type.texture, type.size);
     const x = (Math.random() * 2 - 1) * halfW * 0.7;
-    mesh.position.set(x, -halfH * 1.05, (Math.random() - 0.5) * 0.6);
+    mesh.position.set(x, -halfH * 1.1, 0);
     scene.add(mesh);
     const vy = 8 + Math.random() * 5 + Math.min(elapsed * 0.15, 4);
     const vx = (Math.random() - 0.5) * 2.5;
     fruits.push({
-      mesh, type, r: type.radius,
+      mesh, type, r: type.size * 0.42,
       vel: new THREE.Vector3(vx, vy, 0),
-      rot: new THREE.Vector3(Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 4 - 2),
+      spin: naturalSpin(vx),
       alive: true
     });
   }
 
   function spawnBomb() {
-    const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6, 18, 18),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.6 })
-    );
-    group.add(body);
-    const spark = new THREE.Mesh(
-      new THREE.SphereGeometry(0.09, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffb703, emissive: 0xff7300, emissiveIntensity: 1.5 })
-    );
-    spark.position.set(0, 0.65, 0);
-    group.add(spark);
+    const size = 1.05;
+    const mesh = makeSpriteMesh(bombTexture, size);
     const x = (Math.random() * 2 - 1) * halfW * 0.6;
-    group.position.set(x, -halfH * 1.05, (Math.random() - 0.5) * 0.6);
-    scene.add(group);
+    mesh.position.set(x, -halfH * 1.1, 0);
+    scene.add(mesh);
     const vy = 8 + Math.random() * 4 + Math.min(elapsed * 0.1, 3);
+    const vx = (Math.random() - 0.5) * 2;
     bombs.push({
-      mesh: group, spark, r: 0.62,
-      vel: new THREE.Vector3((Math.random() - 0.5) * 2, vy, 0),
-      rot: new THREE.Vector3(Math.random() * 3, Math.random() * 3, Math.random() * 3),
+      mesh, r: size * 0.42,
+      vel: new THREE.Vector3(vx, vy, 0),
+      spin: naturalSpin(vx),
       alive: true
     });
   }
 
   function burstJuice(pos, color, n = 10) {
     for (let i = 0; i < n; i++) {
-      const geo = new THREE.SphereGeometry(0.06 + Math.random() * 0.05, 6, 6);
+      const geo = new THREE.PlaneGeometry(0.09 + Math.random() * 0.06, 0.09 + Math.random() * 0.06);
       const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
       const p = new THREE.Mesh(geo, mat);
       p.position.copy(pos);
@@ -379,36 +413,46 @@
       const spd = 2 + Math.random() * 4;
       debris.push({
         mesh: p, life: 0.6 + Math.random() * 0.3, age: 0,
-        vel: new THREE.Vector3(Math.cos(ang) * spd, Math.sin(ang) * spd + 2, (Math.random() - 0.5) * 2),
-        isParticle: true
+        vel: new THREE.Vector3(Math.cos(ang) * spd, Math.sin(ang) * spd + 2, 0),
+        spin: (Math.random() - 0.5) * 8,
       });
     }
+  }
+
+  // tạo 2 nửa từ đúng ảnh gốc (cắt UV theo chiều ngang) để văng ra khi chém
+  function makeHalfMesh(texture, size, side) {
+    const w = size / 2;
+    const geo = new THREE.PlaneGeometry(w, size);
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) {
+      const u = uv.getX(i);
+      uv.setX(i, side === 0 ? u * 0.5 : 0.5 + u * 0.5);
+    }
+    uv.needsUpdate = true;
+    geo.translate(side === 0 ? -w / 2 : w / 2, 0, 0);
+    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide });
+    return new THREE.Mesh(geo, mat);
   }
 
   function sliceFruit(f, hitDir) {
     f.alive = false;
     scene.remove(f.mesh);
     const pos = f.mesh.position.clone();
-    const color = f.type.color;
 
-    // 2 nửa quả văng ra
     for (let side = 0; side < 2; side++) {
-      const geo = new THREE.SphereGeometry(f.r, 16, 16, side === 0 ? 0 : Math.PI, Math.PI);
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
-      const half = new THREE.Mesh(geo, mat);
+      const half = makeHalfMesh(f.type.texture, f.type.size, side);
       half.position.copy(pos);
-      half.rotation.copy(f.mesh.rotation);
+      half.rotation.z = f.mesh.rotation.z;
       scene.add(half);
       const dirSign = side === 0 ? -1 : 1;
       const perp = new THREE.Vector3(-hitDir.y, hitDir.x, 0).normalize().multiplyScalar(dirSign);
       debris.push({
         mesh: half, life: 1.0, age: 0,
         vel: perp.multiplyScalar(2.5).add(f.vel.clone().multiplyScalar(0.4)).add(new THREE.Vector3(0, 1.5, 0)),
-        angVel: new THREE.Vector3(Math.random()*4-2, Math.random()*4-2, Math.random()*4-2),
-        isParticle: false
+        spin: dirSign * (3 + Math.random() * 3),
       });
     }
-    burstJuice(pos, color, 12);
+    burstJuice(pos, f.type.color, 12);
   }
 
   function explodeBomb(b) {
@@ -422,16 +466,13 @@
       d.age += dt;
       d.vel.y += GRAVITY * dt;
       d.mesh.position.addScaledVector(d.vel, dt);
-      if (d.angVel) d.mesh.rotation.set(d.mesh.rotation.x + d.angVel.x*dt, d.mesh.rotation.y + d.angVel.y*dt, d.mesh.rotation.z + d.angVel.z*dt);
+      d.mesh.rotation.z += d.spin * dt;
       const t = d.age / d.life;
-      if (d.mesh.material) d.mesh.material.opacity = Math.max(0, 1 - t);
-      if (d.mesh.material) d.mesh.material.transparent = true;
+      d.mesh.material.transparent = true;
+      d.mesh.material.opacity = Math.max(0, 1 - t);
     }
     for (let i = debris.length - 1; i >= 0; i--) {
-      if (debris[i].age >= debris[i].life) {
-        scene.remove(debris[i].mesh);
-        debris.splice(i, 1);
-      }
+      if (debris[i].age >= debris[i].life) { scene.remove(debris[i].mesh); debris.splice(i, 1); }
     }
   }
 
@@ -451,9 +492,6 @@
 
   function showCombo(mult) {
     comboText.textContent = `Combo x${mult}!`;
-    comboText.style.left = '50%';
-    comboText.style.top = '18%';
-    comboText.style.transform = 'translateX(-50%)';
     comboText.style.opacity = '1';
     clearTimeout(showCombo._t);
     showCombo._t = setTimeout(() => comboText.style.opacity = '0', 500);
@@ -497,7 +535,6 @@
     elapsed += dt;
     score += dt * 2;
 
-    // ---- input: cập nhật vị trí dao ----
     let ndc;
     if (usingMouse && mouseNDC) {
       ndc = mouseNDC;
@@ -509,7 +546,6 @@
     const targetPos = worldFromNDC(ndc.nx, ndc.ny);
     const prevBlade = bladePos.clone();
     bladePos.lerp(targetPos, Math.min(dt * 14, 1));
-    bladeLight.position.copy(bladePos);
 
     trail.push({ pos: bladePos.clone(), t: ts });
     trail = trail.filter(p => ts - p.t < 140);
@@ -526,7 +562,6 @@
     if (hitDir.lengthSq() < 1e-6) hitDir.set(1, 0, 0);
     hitDir.normalize();
 
-    // ---- spawn ----
     spawnTimer -= dt;
     const spawnRate = Math.max(1.1 - elapsed * 0.02, 0.35);
     if (spawnTimer <= 0) {
@@ -535,19 +570,16 @@
       else spawnFruit();
     }
 
-    // ---- combo timer ----
     if (comboResetTimer > 0) {
       comboResetTimer -= dt;
       if (comboResetTimer <= 0) combo = 0;
     }
 
-    // ---- update + collision fruits ----
     for (const f of fruits) {
       if (!f.alive) continue;
       f.vel.y += GRAVITY * dt;
       f.mesh.position.addScaledVector(f.vel, dt);
-      f.mesh.rotation.x += f.rot.x * dt;
-      f.mesh.rotation.y += f.rot.y * dt;
+      f.mesh.rotation.z += f.spin * dt;
 
       if (slicing && distPointToSegment(f.mesh.position, prevBlade, bladePos) < f.r + 0.15) {
         combo++;
@@ -559,7 +591,7 @@
         sliceFruit(f, hitDir);
         continue;
       }
-      if (f.mesh.position.y < -halfH * 1.15) {
+      if (f.mesh.position.y < -halfH * 1.2) {
         f.alive = false;
         scene.remove(f.mesh);
         loseLife();
@@ -567,21 +599,18 @@
     }
     fruits = fruits.filter(f => f.alive);
 
-    // ---- update + collision bombs ----
     for (const b of bombs) {
       if (!b.alive) continue;
       b.vel.y += GRAVITY * dt;
       b.mesh.position.addScaledVector(b.vel, dt);
-      b.mesh.rotation.x += b.rot.x * dt;
-      b.mesh.rotation.y += b.rot.y * dt;
-      b.spark.material.emissiveIntensity = 1 + Math.sin(ts * 0.02) * 0.8;
+      b.mesh.rotation.z += b.spin * dt;
 
       if (slicing && distPointToSegment(b.mesh.position, prevBlade, bladePos) < b.r + 0.1) {
         b.alive = false;
         explodeBomb(b);
         break;
       }
-      if (b.mesh.position.y < -halfH * 1.15) {
+      if (b.mesh.position.y < -halfH * 1.2) {
         b.alive = false;
         scene.remove(b.mesh);
       }
@@ -594,9 +623,7 @@
     if (running) requestAnimationFrame(loop);
   }
 
-  // idle render trước khi bắt đầu
   renderer.render(scene, camera);
-  window.addEventListener('resize', computeFrustum);
 })();
 </script>
 </body>
