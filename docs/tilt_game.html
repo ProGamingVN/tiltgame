@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Né Vật Cản - Điều khiển bằng MPU6050</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #1b1f33;
+    --accent: #5ee6c8;
+    --accent2: #ff6b6b;
+    --text: #e8eaf5;
+    --muted: #8b90ad;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #1a2040, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 22px; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    width: min(820px, 100%);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+
+  button {
+    background: var(--accent);
+    color: #0b1220;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  button.secondary { background: #2b3156; color: var(--text); }
+
+  .status-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent2);
+    margin-right: 6px;
+  }
+  .status-dot.on { background: var(--accent); }
+  .status-row { display: flex; align-items: center; font-size: 13px; color: var(--muted); gap: 14px; }
+
+  #debug { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  canvas {
+    background: #10142a;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 0 0 1px #2a2f52;
+    touch-action: none;
+    max-width: 100%;
+  }
+
+  .hud {
+    width: min(820px, 100%);
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 10px 4px;
+  }
+  .hud b { color: var(--text); font-size: 18px; }
+
+  .hint {
+    max-width: min(820px, 100%);
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  code { background: #262b4a; padding: 1px 6px; border-radius: 5px; }
+
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(8,10,20,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  #overlay h2 { font-size: 26px; margin-bottom: 6px; }
+  #overlay p { color: var(--muted); margin: 4px 0 18px; }
+</style>
+</head>
+<body>
+
+  <h1>🎮 Né Vật Cản — điều khiển bằng nghiêng ESP32 + MPU6050</h1>
+  <div class="subtitle">Nghiêng module trái/phải/trước/sau để né các khối rơi xuống</div>
+
+  <div class="panel">
+    <div class="status-row">
+      <span><span id="dot" class="status-dot"></span><span id="statusText">Chưa kết nối</span></span>
+      <span id="debug">roll: 0.0°&nbsp;&nbsp;pitch: 0.0°</span>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button id="btnConnect">🔌 Kết nối ESP32</button>
+      <button id="btnStart" class="secondary">▶️ Bắt đầu chơi</button>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div>Điểm: <b id="scoreLabel">0</b></div>
+    <div>Kỷ lục: <b id="bestLabel">0</b></div>
+  </div>
+
+  <canvas id="game" width="800" height="480"></canvas>
+
+  <div class="hint">
+    <b>Cách chơi:</b> nhấn <code>Kết nối ESP32</code>, chọn cổng COM/USB của board trong hộp thoại của trình duyệt
+    (board phải đang chạy firmware <code>esp32_mpu6050_firmware.ino</code> và không được mở Serial Monitor ở nơi khác cùng lúc).
+    Sau khi kết nối, nhấn <code>Bắt đầu chơi</code> rồi nghiêng module để né các khối rơi xuống.
+    Chỉ hoạt động trên <b>Chrome hoặc Edge</b> trên máy tính (không hỗ trợ trên điện thoại/Safari).
+    Nếu không có ESP32 trong tay, bạn vẫn có thể chơi thử bằng <b>phím mũi tên / WASD</b> trên bàn phím.
+  </div>
+
+  <div id="overlay">
+    <h2 id="overTitle">Va chạm rồi! 💥</h2>
+    <p id="overSub">Điểm của bạn: 0</p>
+    <button id="btnRestart">🔁 Chơi lại</button>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const btnConnect = document.getElementById('btnConnect');
+  const btnStart = document.getElementById('btnStart');
+  const btnRestart = document.getElementById('btnRestart');
+  const dot = document.getElementById('dot');
+  const statusText = document.getElementById('statusText');
+  const debugEl = document.getElementById('debug');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const bestLabel = document.getElementById('bestLabel');
+  const overlay = document.getElementById('overlay');
+  const overSub = document.getElementById('overSub');
+
+  // ---------- Trạng thái nghiêng (từ ESP32 hoặc bàn phím) ----------
+  let roll = 0;   // trái(-) / phải(+), độ
+  let pitch = 0;  // trước(-) / sau(+), độ
+  const TILT_RANGE = 35; // độ nghiêng tối đa coi là "hết cỡ"
+
+  // Bàn phím dự phòng khi chưa có board
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.key] = true);
+  window.addEventListener('keyup', e => keys[e.key] = false);
+  function keyboardFallback() {
+    let kr = 0, kp = 0;
+    if (keys['ArrowLeft'] || keys['a']) kr -= 1;
+    if (keys['ArrowRight'] || keys['d']) kr += 1;
+    if (keys['ArrowUp'] || keys['w']) kp -= 1;
+    if (keys['ArrowDown'] || keys['s']) kp += 1;
+    return { kr: kr * TILT_RANGE * 0.8, kp: kp * TILT_RANGE * 0.8 };
+  }
+
+  // ---------- Web Serial ----------
+  let port, reader, keepReading = false;
+
+  async function connectSerial() {
+    if (!('serial' in navigator)) {
+      alert('Trình duyệt này không hỗ trợ Web Serial API.\nHãy dùng Chrome hoặc Edge trên máy tính.');
+      return;
+    }
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      keepReading = true;
+      dot.classList.add('on');
+      statusText.textContent = 'Đã kết nối';
+      btnStart.disabled = false;
+      readLoop();
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = 'Kết nối thất bại: ' + err.message;
+    }
+  }
+
+  async function readLoop() {
+    const textDecoder = new TextDecoderStream();
+    const readableClosed = port.readable.pipeTo(textDecoder.writable);
+    reader = textDecoder.readable.getReader();
+    let buffer = '';
+    try {
+      while (keepReading) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        let idx;
+        while ((idx = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx + 1);
+          parseLine(line);
+        }
+      }
+    } catch (err) {
+      console.warn('Mất kết nối serial:', err);
+    } finally {
+      reader.releaseLock();
+      dot.classList.remove('on');
+      statusText.textContent = 'Mất kết nối';
+    }
+  }
+
+  function parseLine(line) {
+    // Định dạng mong đợi: "roll,pitch"  ví dụ "-12.30,4.55"
+    const parts = line.split(',');
+    if (parts.length !== 2) return;
+    const r = parseFloat(parts[0]);
+    const p = parseFloat(parts[1]);
+    if (Number.isFinite(r) && Number.isFinite(p)) {
+      roll = r;
+      pitch = p;
+      debugEl.textContent = `roll: ${r.toFixed(1)}°  pitch: ${p.toFixed(1)}°`;
+    }
+  }
+
+  btnConnect.addEventListener('click', connectSerial);
+
+  // ---------- Game ----------
+  const player = { x: W / 2, y: H - 60, r: 16 };
+  let obstacles = [];
+  let running = false;
+  let score = 0;
+  let best = Number(localStorage.getItem('tiltGameBest') || 0);
+  bestLabel.textContent = best;
+  let spawnTimer = 0;
+  let elapsed = 0;
+  let lastTs = 0;
+
+  function resetGame() {
+    player.x = W / 2;
+    player.y = H / 2;
+    obstacles = [];
+    score = 0;
+    spawnTimer = 0;
+    elapsed = 0;
+    overlay.style.display = 'none';
+  }
+
+  function startGame() {
+    resetGame();
+    running = true;
+    lastTs = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  btnStart.addEventListener('click', startGame);
+  btnRestart.addEventListener('click', startGame);
+
+  function spawnObstacle() {
+    const fromTop = Math.random() < 0.6;
+    const size = 24 + Math.random() * 34;
+    const speed = 140 + elapsed * 6 + Math.random() * 60;
+    if (fromTop) {
+      obstacles.push({ x: Math.random() * (W - size), y: -size, w: size, h: size, vx: 0, vy: speed });
+    } else {
+      // thỉnh thoảng bay ngang cho đa dạng
+      const fromLeft = Math.random() < 0.5;
+      obstacles.push({
+        x: fromLeft ? -size : W,
+        y: Math.random() * (H - size),
+        w: size, h: size,
+        vx: (fromLeft ? 1 : -1) * (100 + elapsed * 4),
+        vy: 0
+      });
+    }
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+    elapsed += dt;
+    score += dt * 10;
+
+    // ---- input ----
+    let r = roll, p = pitch;
+    if (Math.abs(r) < 0.5 && Math.abs(p) < 0.5) {
+      const kb = keyboardFallback();
+      r = kb.kr; p = kb.kp;
+    }
+    const nx = clamp(r / TILT_RANGE, -1, 1);
+    const ny = clamp(p / TILT_RANGE, -1, 1);
+    const targetX = W / 2 + nx * (W / 2 - 40);
+    const targetY = H / 2 + ny * (H / 2 - 40);
+    player.x += (targetX - player.x) * Math.min(dt * 8, 1);
+    player.y += (targetY - player.y) * Math.min(dt * 8, 1);
+
+    // ---- spawn ----
+    spawnTimer -= dt;
+    const spawnRate = Math.max(0.9 - elapsed * 0.02, 0.28);
+    if (spawnTimer <= 0) {
+      spawnObstacle();
+      spawnTimer = spawnRate;
+    }
+
+    // ---- update obstacles ----
+    for (const o of obstacles) {
+      o.x += o.vx * dt;
+      o.y += o.vy * dt;
+    }
+    obstacles = obstacles.filter(o => o.y < H + 60 && o.y > -60 && o.x < W + 60 && o.x > -60);
+
+    // ---- collision ----
+    for (const o of obstacles) {
+      const cx = clamp(player.x, o.x, o.x + o.w);
+      const cy = clamp(player.y, o.y, o.y + o.h);
+      const dx = player.x - cx, dy = player.y - cy;
+      if (dx * dx + dy * dy < player.r * player.r) {
+        return gameOver();
+      }
+    }
+
+    draw();
+    scoreLabel.textContent = Math.floor(score);
+    requestAnimationFrame(loop);
+  }
+
+  function gameOver() {
+    running = false;
+    const finalScore = Math.floor(score);
+    if (finalScore > best) {
+      best = finalScore;
+      localStorage.setItem('tiltGameBest', best);
+    }
+    bestLabel.textContent = best;
+    overSub.textContent = `Điểm của bạn: ${finalScore}`;
+    overlay.style.display = 'flex';
+  }
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // lưới nền nhẹ
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    // obstacles
+    ctx.fillStyle = '#ff6b6b';
+    for (const o of obstacles) {
+      ctx.beginPath();
+      ctx.roundRect(o.x, o.y, o.w, o.h, 6);
+      ctx.fill();
+    }
+
+    // player
+    ctx.beginPath();
+    ctx.fillStyle = '#5ee6c8';
+    ctx.shadowColor = '#5ee6c8';
+    ctx.shadowBlur = 18;
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  draw();
+})();
+</script>
+</body>
+</html>
